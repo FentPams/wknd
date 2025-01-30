@@ -692,21 +692,37 @@ export async function loadEager(document, options, context) {
   }
 }
 
-export async function loadLazy(document, options, context) {
-  const pluginOptions = {
-    ...DEFAULT_OPTIONS,
-    ...(options || {}),
-  };
+export async function loadLazy(document, options = {}) {
+  const pluginOptions = { ...DEFAULT_OPTIONS, ...options };
   // do not show the experimentation pill on prod domains
-  if (window.location.hostname.endsWith('.live')
-    || (typeof options.isProd === 'function' && options.isProd())
-    || (options.prodHost
-        && (options.prodHost === window.location.host
-          || options.prodHost === window.location.hostname
-          || options.prodHost === window.location.origin))) {
+  if (!isDebugEnabled) {
     return;
   }
-  // eslint-disable-next-line import/no-cycle
-  const preview = await import('./preview.js');
-  preview.default(document, pluginOptions, { ...context, getResolvedAudiences });
+
+  // Add event listener for experimentation config requests
+  window.addEventListener('message', (event) => {
+    if (event.data?.type === 'hlx:experimentation-get-config') {
+      try {
+        const safeClone = JSON.parse(JSON.stringify(window.hlx));
+        
+        event.source.postMessage({
+          type: 'hlx:experimentation-config',
+          config: safeClone,
+          source: 'index-js'
+        }, '*');
+      } catch (e) {
+        console.error('Error sending hlx config:', e);
+      }
+    }
+  });
+
+  // const preview = await import(
+  //   'https://opensource.adobe.com/aem-experimentation/preview.js'
+  // );
+  // const context = {
+  //   getMetadata,
+  //   toClassName,
+  //   debug,
+  // };
+  // preview.default.call(context, document, pluginOptions);
 }
