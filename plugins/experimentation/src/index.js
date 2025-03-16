@@ -692,6 +692,10 @@ async function getExperimentConfig(pluginOptions, metadata, overrides) {
     return null;
   }
 
+  const thumbnailMeta = document.querySelector('meta[property="og:image:secure_url"]') || 
+                        document.querySelector('meta[property="og:image"]');
+  const thumbnail = thumbnailMeta ? thumbnailMeta.getAttribute('content') : '';
+
   const audiences = stringToArray(metadata.audiences).map(toClassName);
 
   const splits = metadata.split
@@ -749,6 +753,7 @@ async function getExperimentConfig(pluginOptions, metadata, overrides) {
     startDate,
     variants,
     variantNames,
+    thumbnail,
   };
 
   config.run =
@@ -787,6 +792,7 @@ async function getExperimentConfig(pluginOptions, metadata, overrides) {
   return config;
 }
 
+
 /**
  * Parses the campaign manifest.
  */
@@ -822,10 +828,18 @@ async function runExperiment(document, pluginOptions) {
       el.dataset.variant = variant;
       el.classList.add(`experiment-${toClassName(id)}`);
       el.classList.add(`variant-${toClassName(variant)}`);
+      console.log('Dispatching experimentation event:', {
+        type: 'experiment',
+        experiment: id,
+        variant: variant,
+        config: config,
+        element: el
+      });
       document.dispatchEvent(
         new CustomEvent('aem:experimentation', {
           detail: {
             element: el,
+            config: config,
             type: 'experiment',
             experiment: id,
             variant,
